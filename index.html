@@ -10,9 +10,9 @@
 
     <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <h2>Test SPA con Microsoft Entra ID & SharePoint</h2>
-        <p>Questa pagina dimostra l'autenticazione tramite MSAL.js per aggirare le restrizioni e dialogare con le API.</p>
+        <p id="status-msg">Caricamento e inizializzazione in corso...</p>
         
-        <div id="auth-section">
+        <div id="auth-section" style="display: none;">
             <button id="loginBtn" onclick="signIn()" style="padding: 10px 20px; font-size: 16px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer;">
                 Accedi con Entra ID
             </button>
@@ -45,30 +45,37 @@
             }
         };
 
-        // Creazione dell'istanza MSAL
+        // Creazione dell'istanza globale
         const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-        // Inizializzazione asincrona immediata per evitare errori di chiamata prima del tempo
-        (async () => {
+        // Inizializzazione obbligatoria prima di qualsiasi interazione
+        async function initMsal() {
             try {
                 await msalInstance.initialize();
                 
-                // Controlla se l'utente ha già fatto il login in sessioni precedenti
+                // Nascondi messaggio di caricamento e mostra il login
+                document.getElementById("status-msg").innerText = "Pronto per l'accesso.";
+                document.getElementById("auth-section").style.display = "block";
+
+                // Controlla se l'utente ha già una sessione attiva
                 const accounts = msalInstance.getAllAccounts();
                 if (accounts.length > 0) {
                     msalInstance.setActiveAccount(accounts[0]);
                     showApp(accounts[0].username);
                 }
             } catch (err) {
-                console.error("Errore di inizializzazione MSAL:", err);
-                log("Errore di inizializzazione: " + err.message);
+                console.error("Errore critico di inizializzazione MSAL:", err);
+                document.getElementById("status-msg").innerText = "Errore di inizializzazione: " + err.message;
             }
-        })();
+        }
+
+        // Avvia l'inizializzazione all'apertura della pagina
+        initMsal();
 
         async function signIn() {
             try {
                 const loginResponse = await msalInstance.loginPopup({
-                    scopes: ["User.Read", "Sites.Read.All"] // Permessi delegati necessari
+                    scopes: ["User.Read", "Sites.Read.All"]
                 });
                 msalInstance.setActiveAccount(loginResponse.account);
                 showApp(loginResponse.account.username);
@@ -88,7 +95,7 @@
         }
 
         function showApp(username) {
-            document.getElementById("auth-section").style.display = "block";
+            document.getElementById("auth-section").style.display = "none";
             document.getElementById("app-section").style.display = "block";
             document.getElementById("username").innerText = username;
         }
@@ -112,7 +119,7 @@
                 const data = await fetchResponse.json();
                 log("Dati ricevuti da Microsoft Graph:\n" + JSON.stringify(data, null, 2));
 
-            } catch (err) {
+            }Cerca (err) {
                 console.error(err);
                 log("Errore nella chiamata API: " + err.message);
             }

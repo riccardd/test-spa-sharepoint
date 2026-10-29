@@ -34,9 +34,9 @@
     <script>
         // Configurazione MSAL
         const msalConfig = {
-            auth: {
+            auth: {             
                 clientId: "e0ca935d-9def-44c3-a543-2b64584089ea",       // <-- Metti qui il tuo Client ID
-                authority: "https://login.microsoftonline.com/8b87af7d-8647-4dc7-8df4-5f69a2011bb5", // <-- Metti qui il tuo Tenant ID
+                authority: "https://login.microsoftonline.com/8b87af7d-8647-4dc7-8df4-5f69a2011bb5", // <-- Metti qui il tuo Tenant ID               
                 redirectUri: window.location.origin
             },
             cache: {
@@ -119,7 +119,7 @@
                 const data = await fetchResponse.json();
                 log("Dati ricevuti da Microsoft Graph:\n" + JSON.stringify(data, null, 2));
 
-            }Cerca (err) {
+            } catch (err) {
                 console.error(err);
                 log("Errore nella chiamata API: " + err.message);
             }

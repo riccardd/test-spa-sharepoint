@@ -32,11 +32,11 @@
     </div>
 
     <script>
-        // Configurazione MSAL (Inserisci qui i dati della tua app registrata su Entra ID)
+        // Configurazione MSAL
         const msalConfig = {
             auth: {
-                clientId: "e0ca935d-9def-44c3-a543-2b64584089ea",       // <-- Sostituisci con il Client ID (Application ID)
-                authority: "https://login.microsoftonline.com/8b87af7d-8647-4dc7-8df4-5f69a2011bb5", // <-- Sostituisci con il Tenant ID o 'common'
+                clientId: "e0ca935d-9def-44c3-a543-2b64584089ea",       // <-- Metti qui il tuo Client ID
+                authority: "https://login.microsoftonline.com/8b87af7d-8647-4dc7-8df4-5f69a2011bb5", // <-- Metti qui il tuo Tenant ID
                 redirectUri: window.location.origin
             },
             cache: {
@@ -45,22 +45,30 @@
             }
         };
 
+        // Creazione dell'istanza MSAL
         const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-        // All'avvio controlla se l'utente ha già fatto il login in precedenza
-        async function initialize() {
-            await msalInstance.initialize();
-            const accounts = msalInstance.getAllAccounts();
-            if (accounts.length > 0) {
-                msalInstance.setActiveAccount(accounts[0]);
-                showApp(accounts[0].username);
+        // Inizializzazione asincrona immediata per evitare errori di chiamata prima del tempo
+        (async () => {
+            try {
+                await msalInstance.initialize();
+                
+                // Controlla se l'utente ha già fatto il login in sessioni precedenti
+                const accounts = msalInstance.getAllAccounts();
+                if (accounts.length > 0) {
+                    msalInstance.setActiveAccount(accounts[0]);
+                    showApp(accounts[0].username);
+                }
+            } catch (err) {
+                console.error("Errore di inizializzazione MSAL:", err);
+                log("Errore di inizializzazione: " + err.message);
             }
-        }
+        })();
 
         async function signIn() {
             try {
                 const loginResponse = await msalInstance.loginPopup({
-                    scopes: ["User.Read", "Sites.Read.All"] // Permessi necessari per utente e liste SharePoint
+                    scopes: ["User.Read", "Sites.Read.All"] // Permessi delegati necessari
                 });
                 msalInstance.setActiveAccount(loginResponse.account);
                 showApp(loginResponse.account.username);
@@ -80,12 +88,11 @@
         }
 
         function showApp(username) {
-            document.getElementById("auth-section").style.display = "none";
+            document.getElementById("auth-section").style.display = "block";
             document.getElementById("app-section").style.display = "block";
             document.getElementById("username").innerText = username;
         }
 
-        // Funzione per testare una chiamata sicura tramite le API di Microsoft
         async function callGraphApi() {
             try {
                 const account = msalInstance.getActiveAccount();
@@ -96,7 +103,6 @@
 
                 log("Token ottenuto con successo. Richiesta dati a Microsoft Graph in corso...");
 
-                // Esempio di chiamata alle API di Microsoft Graph
                 const fetchResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
                     headers: {
                         "Authorization": `Bearer ${response.accessToken}`
@@ -109,21 +115,12 @@
             } catch (err) {
                 console.error(err);
                 log("Errore nella chiamata API: " + err.message);
-                // Se il token silenzioso fallisce, prova con il pop-up
-                try {
-                    const response = await msalInstance.acquireTokenPopup({ scopes: ["User.Read"] });
-                    log("Token acquisito via popup con successo.");
-                } catch (popupErr) {
-                    log("Errore popup token: " + popupErr.message);
-                }
             }
         }
 
         function log(text) {
             document.getElementById("output").innerText = text;
         }
-
-        initialize();
     </script>
 </body>
 </html>

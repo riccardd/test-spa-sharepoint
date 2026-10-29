@@ -1,6 +1,129 @@
 <!DOCTYPE html>
-<html>
-<body>
-    <h1>Test GitLab Pages Funziona!</h1>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Test SPA SharePoint & Entra ID</title>
+    <!-- Carichiamo la libreria MSAL.js di Microsoft -->
+    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background-color: #f9f9f9;">
+
+    <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2>Test SPA con Microsoft Entra ID & SharePoint</h2>
+        <p>Questa pagina dimostra l'autenticazione tramite MSAL.js per aggirare le restrizioni e dialogare con le API.</p>
+        
+        <div id="auth-section">
+            <button id="loginBtn" onclick="signIn()" style="padding: 10px 20px; font-size: 16px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Accedi con Entra ID
+            </button>
+        </div>
+
+        <div id="app-section" style="display: none; margin-top: 20px;">
+            <p>Benvenuto, <strong id="username"></strong>!</p>
+            <button onclick="callGraphApi()" style="padding: 8px 16px; font-size: 14px; background: #107c10; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Test chiamata Microsoft Graph (Profilo)
+            </button>
+            <button onclick="signOut()" style="padding: 8px 16px; font-size: 14px; background: #a80000; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+                Disconnetti
+            </button>
+        </div>
+        
+        <pre id="output" style="margin-top: 20px; white-space: pre-wrap; background: #23272e; color: #abb2bf; padding: 15px; border-radius: 5px; font-family: monospace; min-height: 100px;"></pre>
+    </div>
+
+    <script>
+        // Configurazione MSAL (Inserisci qui i dati della tua app registrata su Entra ID)
+        const msalConfig = {
+            auth: {
+                clientId: "INCOLLA_QUI_IL_TUO_CLIENT_ID",       // <-- Sostituisci con il Client ID (Application ID)
+                authority: "https://login.microsoftonline.com/INCOLLA_QUI_IL_TUO_TENANT_ID", // <-- Sostituisci con il Tenant ID o 'common'
+                redirectUri: window.location.origin
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: false
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        // All'avvio controlla se l'utente ha già fatto il login in precedenza
+        async function initialize() {
+            await msalInstance.initialize();
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                msalInstance.setActiveAccount(accounts[0]);
+                showApp(accounts[0].username);
+            }
+        }
+
+        async function signIn() {
+            try {
+                const loginResponse = await msalInstance.loginPopup({
+                    scopes: ["User.Read", "Sites.Read.All"] // Permessi necessari per utente e liste SharePoint
+                });
+                msalInstance.setActiveAccount(loginResponse.account);
+                showApp(loginResponse.account.username);
+                log("Login effettuato con successo!");
+            } catch (err) {
+                console.error(err);
+                log("Errore durante il login: " + err.message);
+            }
+        }
+
+        function signOut() {
+            msalInstance.logoutPopup().then(() => {
+                document.getElementById("auth-section").style.display = "block";
+                document.getElementById("app-section").style.display = "none";
+                log("Disconnessione effettuata.");
+            });
+        }
+
+        function showApp(username) {
+            document.getElementById("auth-section").style.display = "none";
+            document.getElementById("app-section").style.display = "block";
+            document.getElementById("username").innerText = username;
+        }
+
+        // Funzione per testare una chiamata sicura tramite le API di Microsoft
+        async function callGraphApi() {
+            try {
+                const account = msalInstance.getActiveAccount();
+                const response = await msalInstance.acquireTokenSilent({
+                    scopes: ["User.Read"],
+                    account: account
+                });
+
+                log("Token ottenuto con successo. Richiesta dati a Microsoft Graph in corso...");
+
+                // Esempio di chiamata alle API di Microsoft Graph
+                const fetchResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
+                    headers: {
+                        "Authorization": `Bearer ${response.accessToken}`
+                    }
+                });
+
+                const data = await fetchResponse.json();
+                log("Dati ricevuti da Microsoft Graph:\n" + JSON.stringify(data, null, 2));
+
+            } catch (err) {
+                console.error(err);
+                log("Errore nella chiamata API: " + err.message);
+                // Se il token silenzioso fallisce, prova con il pop-up
+                try {
+                    const response = await msalInstance.acquireTokenPopup({ scopes: ["User.Read"] });
+                    log("Token acquisito via popup con successo.");
+                } catch (popupErr) {
+                    log("Errore popup token: " + popupErr.message);
+                }
+            }
+        }
+
+        function log(text) {
+            document.getElementById("output").innerText = text;
+        }
+
+        initialize();
+    </script>
 </body>
 </html>
